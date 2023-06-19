@@ -56,6 +56,7 @@ vm-allocator = { path = "../vm-allocator" }
 vm-device = { path = "../vm-device" }
 vm-memory = { version = "0.11.0", features = ["backend-mmap", "backend-atomic", "backend-bitmap"] }
 vm-migration = { path = "../vm-migration" }
+vm-orphan = { path = "../vm-orphan" }
 vm-virtio = { path = "../vm-virtio" }
 vmm-sys-util = { version = "0.11.0", features = ["with-serde"] }
 zbus = { version = "3.11.1", optional = true }

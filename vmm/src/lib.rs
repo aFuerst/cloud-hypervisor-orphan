@@ -34,6 +34,7 @@ use seccompiler::{apply_filter, SeccompAction};
 use serde::ser::{SerializeStruct, Serializer};
 use serde::{Deserialize, Serialize};
 use signal_hook::iterator::{Handle, Signals};
+use vm_orphan::Orphanable;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io;
@@ -756,6 +757,31 @@ impl Vmm {
             vm.restore()
         } else {
             Err(VmError::VmNotCreated)
+        }
+    }
+
+
+    fn vm_orphan(&mut self, save_path: &str) -> result::Result<(), VmError> {
+        if let Some(ref mut vm) = self.vm {
+            vm.orphan()
+                .map_err(VmError::Orphan)
+                .and_then(|snapshot| {
+                    vm.send(&snapshot, save_path)
+                        .map_err(VmError::SnapshotSend)
+                })
+        } else {
+            Err(VmError::VmNotRunning)
+        }
+    }
+
+
+    fn vm_adopt(&mut self, _save_path: &str) -> result::Result<(), VmError> {
+        if let Some(ref mut _vm) = self.vm {
+            todo!();
+            // vm.adopt()
+            //     .map_err(VmError::Adopt)
+        } else {
+            Err(VmError::VmNotRunning)
         }
     }
 
@@ -1938,6 +1964,22 @@ impl Vmm {
                                     let response = self
                                         .vm_restore(restore_data.as_ref().clone())
                                         .map_err(ApiError::VmRestore)
+                                        .map(|_| ApiResponsePayload::Empty);
+
+                                    sender.send(response).map_err(Error::ApiResponseSend)?;
+                                }
+                                ApiRequest::VmOrphan(orphan_data, sender) => {
+                                    let response = self
+                                        .vm_orphan(&orphan_data.save_path)
+                                        .map_err(ApiError::VmOrphan)
+                                        .map(|_| ApiResponsePayload::Empty);
+
+                                    sender.send(response).map_err(Error::ApiResponseSend)?;
+                                }
+                                ApiRequest::VmAdopt(orphan_data, sender) => {
+                                    let response = self
+                                        .vm_adopt(&orphan_data.save_path)
+                                        .map_err(ApiError::VmAdopt)
                                         .map(|_| ApiResponsePayload::Empty);
 
                                     sender.send(response).map_err(Error::ApiResponseSend)?;

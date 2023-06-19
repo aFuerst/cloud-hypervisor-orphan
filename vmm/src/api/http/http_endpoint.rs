@@ -11,6 +11,7 @@ use crate::api::{
     vm_add_vdpa, vm_add_vsock, vm_boot, vm_counters, vm_create, vm_delete, vm_info, vm_pause,
     vm_power_button, vm_reboot, vm_receive_migration, vm_remove_device, vm_resize, vm_resize_zone,
     vm_restore, vm_resume, vm_send_migration, vm_shutdown, vm_snapshot, vmm_ping, vmm_shutdown,
+    vm_orphan, vm_adopt,
     ApiRequest, VmAction, VmConfig,
 };
 use crate::config::NetConfig;
@@ -156,6 +157,16 @@ impl EndpointHandler for VmActionHandler {
                     api_notifier,
                     api_sender,
                     Arc::new(serde_json::from_slice(body.raw())?),
+                ),
+                Orphan(_) => vm_orphan(
+                    api_notifier, 
+                    api_sender, 
+                    Arc::new(serde_json::from_slice(body.raw())?)
+                ),
+                Adopt(_) => vm_adopt(
+                    api_notifier, 
+                    api_sender, 
+                    Arc::new(serde_json::from_slice(body.raw())?)
                 ),
                 #[cfg(all(target_arch = "x86_64", feature = "guest_debug"))]
                 Coredump(_) => vm_coredump(

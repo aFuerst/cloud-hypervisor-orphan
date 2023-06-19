@@ -361,6 +361,22 @@ fn rest_api_do_command(toplevel: &TopLevel, socket: &mut UnixStream) -> ApiResul
             simple_api_command(socket, "PUT", "restore", Some(&restore_config))
                 .map_err(Error::HttpApiClient)
         }
+        SubCommandEnum::Orphan(ref config) => {
+            let orphan_config = vmm::api::OrphanConfig {
+                save_path: config.vm_state_path.to_owned()
+            };
+            let json: String = serde_json::to_string(&orphan_config).unwrap();
+            simple_api_command(socket, "PUT", "orphan", Some(&json))
+                .map_err(Error::HttpApiClient)
+        }
+        SubCommandEnum::Adopt(ref config) => {
+            let orphan_config = vmm::api::OrphanConfig {
+                save_path: config.vm_state_path.to_owned()
+            };
+            let json: String = serde_json::to_string(&orphan_config).unwrap();
+            simple_api_command(socket, "PUT", "adopt", Some(&json))
+                .map_err(Error::HttpApiClient)
+        }
         SubCommandEnum::Coredump(ref config) => {
             let coredump_config = coredump_config(&config.coredump_config);
             simple_api_command(socket, "PUT", "coredump", Some(&coredump_config))
@@ -710,6 +726,8 @@ enum SubCommandEnum {
     ReceiveMigration(ReceiveMigrationSubcommand),
     Create(CreateSubcommand),
     Version(VersionSubcommand),
+    Orphan(OrphanSubcommand),
+    Adopt(AdoptSubcommand)
 }
 
 #[derive(FromArgs, PartialEq, Debug)]
@@ -940,6 +958,24 @@ struct CreateSubcommand {
 #[argh(subcommand, name = "version")]
 /// Print version information
 struct VersionSubcommand {}
+
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "orphan")]
+/// Orphan VM
+struct OrphanSubcommand {
+    #[argh(positional, default = "String::from(\"-\")")]
+    /// vm state path
+    vm_state_path: String,
+}
+
+#[derive(FromArgs, PartialEq, Debug)]
+#[argh(subcommand, name = "adopt")]
+/// Adopt VM
+struct AdoptSubcommand {
+    #[argh(positional, default = "String::from(\"-\")")]
+    /// vm state path
+    vm_state_path: String,
+}
 
 fn main() {
     let toplevel: TopLevel = argh::from_env();

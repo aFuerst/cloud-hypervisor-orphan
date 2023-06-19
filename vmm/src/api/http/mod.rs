@@ -240,6 +240,14 @@ pub static HTTP_ROUTES: Lazy<HttpRoutes> = Lazy::new(|| {
         endpoint!("/vm.snapshot"),
         Box::new(VmActionHandler::new(VmAction::Snapshot(Arc::default()))),
     );
+    r.routes.insert(
+        endpoint!("/vm.orphan"),
+        Box::new(VmActionHandler::new(VmAction::Orphan(Arc::default()))),
+    );
+    r.routes.insert(
+        endpoint!("/vm.adopt"),
+        Box::new(VmActionHandler::new(VmAction::Adopt(Arc::default()))),
+    );
     #[cfg(all(target_arch = "x86_64", feature = "guest_debug"))]
     r.routes.insert(
         endpoint!("/vm.coredump"),

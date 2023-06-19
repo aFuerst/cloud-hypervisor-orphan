@@ -99,6 +99,12 @@ pub enum ApiError {
     /// The VM could not be snapshotted.
     VmSnapshot(VmError),
 
+    /// The VM could not be orphaned.
+    VmOrphan(VmError),
+
+    /// The VM could not be adopted.
+    VmAdopt(VmError),
+
     /// The VM could not restored.
     VmRestore(VmError),
 
@@ -195,6 +201,12 @@ pub struct VmRemoveDeviceData {
 pub struct VmSnapshotConfig {
     /// The snapshot destination URL
     pub destination_url: String,
+}
+
+#[derive(Clone, Deserialize, Serialize, Default, Debug)]
+pub struct OrphanConfig {
+    /// File to store/retrieve device state
+    pub save_path: String,
 }
 
 #[derive(Clone, Deserialize, Serialize, Default, Debug)]
@@ -323,6 +335,10 @@ pub enum ApiRequest {
     /// Restore from a VM snapshot
     VmRestore(Arc<RestoreConfig>, Sender<ApiResponse>),
 
+    VmOrphan(Arc<OrphanConfig>, Sender<ApiResponse>),
+
+    VmAdopt(Arc<OrphanConfig>, Sender<ApiResponse>),
+
     /// Take a VM coredump
     #[cfg(all(target_arch = "x86_64", feature = "guest_debug"))]
     VmCoredump(Arc<VmCoredumpData>, Sender<ApiResponse>),
@@ -419,6 +435,10 @@ pub enum VmAction {
     /// Snapshot VM
     Snapshot(Arc<VmSnapshotConfig>),
 
+    Orphan(Arc<OrphanConfig>),
+
+    Adopt(Arc<OrphanConfig>),
+
     /// Coredump VM
     #[cfg(all(target_arch = "x86_64", feature = "guest_debug"))]
     Coredump(Arc<VmCoredumpData>),
@@ -462,6 +482,8 @@ fn vm_action(
         ResizeZone(v) => ApiRequest::VmResizeZone(v, response_sender),
         Restore(v) => ApiRequest::VmRestore(v, response_sender),
         Snapshot(v) => ApiRequest::VmSnapshot(v, response_sender),
+        Orphan(v) => ApiRequest::VmOrphan(v, response_sender),
+        Adopt(v) => ApiRequest::VmAdopt(v, response_sender),
         #[cfg(all(target_arch = "x86_64", feature = "guest_debug"))]
         Coredump(v) => ApiRequest::VmCoredump(v, response_sender),
         ReceiveMigration(v) => ApiRequest::VmReceiveMigration(v, response_sender),
@@ -547,6 +569,22 @@ pub fn vm_restore(
     data: Arc<RestoreConfig>,
 ) -> ApiResult<Option<Body>> {
     vm_action(api_evt, api_sender, VmAction::Restore(data))
+}
+
+pub fn vm_orphan(
+    api_evt: EventFd,
+    api_sender: Sender<ApiRequest>,
+    data: Arc<OrphanConfig>,
+) -> ApiResult<Option<Body>> {
+    vm_action(api_evt, api_sender, VmAction::Orphan(data))
+}
+
+pub fn vm_adopt(
+    api_evt: EventFd,
+    api_sender: Sender<ApiRequest>,
+    data: Arc<OrphanConfig>,
+) -> ApiResult<Option<Body>> {
+    vm_action(api_evt, api_sender, VmAction::Adopt(data))
 }
 
 #[cfg(all(target_arch = "x86_64", feature = "guest_debug"))]

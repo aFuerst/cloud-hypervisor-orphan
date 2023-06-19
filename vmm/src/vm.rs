@@ -66,6 +66,7 @@ use linux_loader::loader::pe::Error::InvalidImageMagicNumber;
 use linux_loader::loader::KernelLoader;
 use seccompiler::SeccompAction;
 use serde::{Deserialize, Serialize};
+use vm_orphan::{Orphanable, OrphanableError};
 use std::cmp;
 use std::collections::BTreeMap;
 use std::collections::HashMap;
@@ -193,6 +194,12 @@ pub enum Error {
 
     #[error("Cannot restore VM: {0}")]
     Restore(#[source] MigratableError),
+
+    #[error("Cannot adopt VM: {0}")]
+    Adopt(#[source] OrphanableError),
+
+    #[error("Cannot orphan VM: {0}")]
+    Orphan(#[source] OrphanableError),
 
     #[error("Cannot send VM snapshot: {0}")]
     SnapshotSend(#[source] MigratableError),
@@ -2548,6 +2555,16 @@ impl Migratable for Vm {
     fn complete_migration(&mut self) -> std::result::Result<(), MigratableError> {
         self.memory_manager.lock().unwrap().complete_migration()?;
         self.device_manager.lock().unwrap().complete_migration()
+    }
+}
+
+impl Orphanable for Vm {
+    fn orphan(&mut self)  -> std::result::Result<Snapshot, vm_orphan::OrphanableError> {
+        todo!()
+    }
+
+    fn adopt(&mut self)  -> std::result::Result<(), vm_orphan::OrphanableError> {
+        todo!()
     }
 }
 

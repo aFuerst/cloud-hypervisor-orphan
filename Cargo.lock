@@ -2237,6 +2237,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vm-orphan"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "versionize",
+ "versionize_derive",
+ "vm-migration",
+]
+
+[[package]]
 name = "vm-virtio"
 version = "0.1.0"
 dependencies = [
@@ -2291,6 +2304,7 @@ dependencies = [
  "vm-device",
  "vm-memory",
  "vm-migration",
+ "vm-orphan",
  "vm-virtio",
  "vmm-sys-util",
  "zbus",
