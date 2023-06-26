@@ -2572,6 +2572,7 @@ impl Transportable for MemoryManager {
         &self,
         _snapshot: &Snapshot,
         destination_url: &str,
+        _memory: bool,
     ) -> result::Result<(), MigratableError> {
         if self.snapshot_memory_ranges.is_empty() {
             return Ok(());

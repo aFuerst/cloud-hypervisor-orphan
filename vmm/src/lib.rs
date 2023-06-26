@@ -688,7 +688,7 @@ impl Vmm {
             vm.snapshot()
                 .map_err(VmError::Snapshot)
                 .and_then(|snapshot| {
-                    vm.send(&snapshot, destination_url)
+                    vm.send(&snapshot, destination_url, true)
                         .map_err(VmError::SnapshotSend)
                 })
         } else {
@@ -766,7 +766,7 @@ impl Vmm {
             vm.orphan()
                 .map_err(VmError::Orphan)
                 .and_then(|snapshot| {
-                    vm.send(&snapshot, save_path)
+                    vm.send(&snapshot, save_path, false)
                         .map_err(VmError::SnapshotSend)
                 })
         } else {

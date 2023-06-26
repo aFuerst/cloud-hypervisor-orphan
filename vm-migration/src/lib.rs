@@ -243,10 +243,12 @@ pub trait Transportable: Pausable + Snapshottable {
     /// * `snapshot` - The migratable component snapshot to send.
     /// * `destination_url` - The destination URL to send the snapshot to. This
     ///                       could be an HTTP endpoint, a TCP address or a local file.
+    /// * `memory` - To include memory in the transport, for orphaning and not moving mem
     fn send(
         &self,
         _snapshot: &Snapshot,
         _destination_url: &str,
+        _memory: bool
     ) -> std::result::Result<(), MigratableError> {
         Ok(())
     }

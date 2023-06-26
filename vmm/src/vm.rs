@@ -315,27 +315,28 @@ pub enum VmState {
     Shutdown,
     Paused,
     BreakPoint,
+    Orphaned,
 }
 
 impl VmState {
     fn valid_transition(self, new_state: VmState) -> Result<()> {
         match self {
             VmState::Created => match new_state {
-                VmState::Created => Err(Error::InvalidStateTransition(self, new_state)),
+                VmState::Created | VmState::Orphaned => Err(Error::InvalidStateTransition(self, new_state)),
                 VmState::Running | VmState::Paused | VmState::BreakPoint | VmState::Shutdown => {
                     Ok(())
                 }
             },
 
             VmState::Running => match new_state {
-                VmState::Created | VmState::Running => {
+                VmState::Created | VmState::Running | VmState::Orphaned => {
                     Err(Error::InvalidStateTransition(self, new_state))
                 }
                 VmState::Paused | VmState::Shutdown | VmState::BreakPoint => Ok(()),
             },
 
             VmState::Shutdown => match new_state {
-                VmState::Paused | VmState::Created | VmState::Shutdown | VmState::BreakPoint => {
+                VmState::Paused | VmState::Created | VmState::Shutdown | VmState::BreakPoint | VmState::Orphaned => {
                     Err(Error::InvalidStateTransition(self, new_state))
                 }
                 VmState::Running => Ok(()),
@@ -345,10 +346,14 @@ impl VmState {
                 VmState::Created | VmState::Paused | VmState::BreakPoint => {
                     Err(Error::InvalidStateTransition(self, new_state))
                 }
-                VmState::Running | VmState::Shutdown => Ok(()),
+                VmState::Running | VmState::Shutdown | VmState::Orphaned => Ok(()),
             },
             VmState::BreakPoint => match new_state {
                 VmState::Created | VmState::Running => Ok(()),
+                _ => Err(Error::InvalidStateTransition(self, new_state)),
+            },
+            VmState::Orphaned => match new_state {
+                VmState::Running => Ok(()),
                 _ => Err(Error::InvalidStateTransition(self, new_state)),
             },
         }
@@ -2474,6 +2479,7 @@ impl Transportable for Vm {
         &self,
         snapshot: &Snapshot,
         destination_url: &str,
+        memory: bool
     ) -> std::result::Result<(), MigratableError> {
         let mut snapshot_config_path = url_to_path(destination_url)?;
         snapshot_config_path.push(SNAPSHOT_CONFIG_FILE);
@@ -2513,16 +2519,18 @@ impl Transportable for Vm {
             .write(&vm_state)
             .map_err(|e| MigratableError::MigrateSend(e.into()))?;
 
-        // Tell the memory manager to also send/write its own snapshot.
-        if let Some(memory_manager_snapshot) = snapshot.snapshots.get(MEMORY_MANAGER_SNAPSHOT_ID) {
-            self.memory_manager
-                .lock()
-                .unwrap()
-                .send(&memory_manager_snapshot.clone(), destination_url)?;
-        } else {
-            return Err(MigratableError::Restore(anyhow!(
-                "Missing memory manager snapshot"
-            )));
+        if memory {
+            // Tell the memory manager to also send/write its own snapshot.
+            if let Some(memory_manager_snapshot) = snapshot.snapshots.get(MEMORY_MANAGER_SNAPSHOT_ID) {
+                self.memory_manager
+                    .lock()
+                    .unwrap()
+                    .send(&memory_manager_snapshot.clone(), destination_url, memory)?;
+            } else {
+                return Err(MigratableError::Restore(anyhow!(
+                    "Missing memory manager snapshot"
+                )));
+            }
         }
 
         Ok(())
@@ -2559,11 +2567,31 @@ impl Migratable for Vm {
 }
 
 impl Orphanable for Vm {
-    fn orphan(&mut self)  -> std::result::Result<Snapshot, vm_orphan::OrphanableError> {
-        todo!()
+    fn orphan(&mut self)  -> std::result::Result<Snapshot, OrphanableError> {
+        event!("vm", "orphaning");
+        let mut state = self.state.try_write().map_err(|_| OrphanableError::Orphan(anyhow!("Could not lock VM state")))?;
+        let new_state = VmState::Orphaned;
+        state.valid_transition(new_state).map_err(|e| OrphanableError::Orphan(anyhow!("Invalid state transition {}", e)))?;
+
+        let current_state = self.get_state().unwrap();
+        if current_state != VmState::Running {
+            return Err(OrphanableError::Orphan(anyhow!(
+                "Trying to orphan while VM is not running"
+            )));
+        }
+
+        let (_id, device_snapshot_data) = {
+            let mut device_manager = self.device_manager.lock().unwrap();
+            device_manager.pause().map_err(|e| OrphanableError::Orphan(anyhow!("Device paused failed {}", e)))?;
+            (device_manager.id(), device_manager.snapshot().map_err(|e| OrphanableError::Orphan(anyhow!("Device snapshot failed {}", e)))?)
+        };
+
+        *state = new_state;
+        event!("vm", "orphaned");
+        Ok(device_snapshot_data)
     }
 
-    fn adopt(&mut self)  -> std::result::Result<(), vm_orphan::OrphanableError> {
+    fn adopt(&mut self)  -> std::result::Result<(), OrphanableError> {
         todo!()
     }
 }
