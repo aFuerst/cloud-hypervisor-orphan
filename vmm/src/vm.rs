@@ -329,10 +329,10 @@ impl VmState {
             },
 
             VmState::Running => match new_state {
-                VmState::Created | VmState::Running | VmState::Orphaned => {
+                VmState::Created | VmState::Running => {
                     Err(Error::InvalidStateTransition(self, new_state))
                 }
-                VmState::Paused | VmState::Shutdown | VmState::BreakPoint => Ok(()),
+                VmState::Paused | VmState::Shutdown | VmState::BreakPoint | VmState::Orphaned => Ok(()),
             },
 
             VmState::Shutdown => match new_state {
@@ -352,10 +352,7 @@ impl VmState {
                 VmState::Created | VmState::Running => Ok(()),
                 _ => Err(Error::InvalidStateTransition(self, new_state)),
             },
-            VmState::Orphaned => match new_state {
-                VmState::Running => Ok(()),
-                _ => Err(Error::InvalidStateTransition(self, new_state)),
-            },
+            VmState::Orphaned => Err(Error::InvalidStateTransition(self, new_state)),
         }
     }
 }
@@ -2569,16 +2566,16 @@ impl Migratable for Vm {
 impl Orphanable for Vm {
     fn orphan(&mut self)  -> std::result::Result<Snapshot, OrphanableError> {
         event!("vm", "orphaning");
-        let mut state = self.state.try_write().map_err(|_| OrphanableError::Orphan(anyhow!("Could not lock VM state")))?;
-        let new_state = VmState::Orphaned;
-        state.valid_transition(new_state).map_err(|e| OrphanableError::Orphan(anyhow!("Invalid state transition {}", e)))?;
-
-        let current_state = self.get_state().unwrap();
+        let current_state = self.get_state().map_err(|_| OrphanableError::Orphan(anyhow!("Could not get read lock on VM state")))?;
         if current_state != VmState::Running {
             return Err(OrphanableError::Orphan(anyhow!(
                 "Trying to orphan while VM is not running"
             )));
         }
+
+        let mut state = self.state.try_write().map_err(|_| OrphanableError::Orphan(anyhow!("Could not get write lock on VM state")))?;
+        let new_state = VmState::Orphaned;
+        state.valid_transition(new_state).map_err(|e| OrphanableError::Orphan(anyhow!("Invalid state transition {}", e)))?;
 
         let (_id, device_snapshot_data) = {
             let mut device_manager = self.device_manager.lock().unwrap();
