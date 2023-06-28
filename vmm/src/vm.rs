@@ -343,16 +343,19 @@ impl VmState {
             },
 
             VmState::Paused => match new_state {
-                VmState::Created | VmState::Paused | VmState::BreakPoint => {
+                VmState::Created | VmState::Paused | VmState::BreakPoint | VmState::Orphaned => {
                     Err(Error::InvalidStateTransition(self, new_state))
                 }
-                VmState::Running | VmState::Shutdown | VmState::Orphaned => Ok(()),
+                VmState::Running | VmState::Shutdown => Ok(()),
             },
             VmState::BreakPoint => match new_state {
                 VmState::Created | VmState::Running => Ok(()),
                 _ => Err(Error::InvalidStateTransition(self, new_state)),
             },
-            VmState::Orphaned => Err(Error::InvalidStateTransition(self, new_state)),
+            VmState::Orphaned => match new_state {
+                VmState::Running => Ok(()),
+                _ => Err(Error::InvalidStateTransition(self, new_state)),
+            }
         }
     }
 }
@@ -2366,15 +2369,22 @@ impl Pausable for Vm {
             .valid_transition(new_state)
             .map_err(|e| MigratableError::Resume(anyhow!("Invalid transition: {:?}", e)))?;
 
-        self.cpu_manager.lock().unwrap().resume()?;
-        #[cfg(all(feature = "kvm", target_arch = "x86_64"))]
-        {
-            if let Some(clock) = &self.saved_clock {
-                self.vm.set_clock(clock).map_err(|e| {
-                    MigratableError::Resume(anyhow!("Could not set VM clock: {}", e))
-                })?;
-            }
-        }
+        match *state {
+            VmState::Paused => {
+                self.cpu_manager.lock().unwrap().resume()?;
+                #[cfg(all(feature = "kvm", target_arch = "x86_64"))]
+                {
+                    if let Some(clock) = &self.saved_clock {
+                        self.vm.set_clock(clock).map_err(|e| {
+                            MigratableError::Resume(anyhow!("Could not set VM clock: {}", e))
+                        })?;
+                    }
+                }
+                Ok(())
+            },
+            VmState::Orphaned => Ok(()),
+            _ => Err(MigratableError::Resume(anyhow!("Invalid transition: {:?} => {:?}", state, VmState::Running))),
+        }?;
         self.device_manager.lock().unwrap().resume()?;
 
         // And we're back to the Running state.
@@ -2566,12 +2576,12 @@ impl Migratable for Vm {
 impl Orphanable for Vm {
     fn orphan(&mut self)  -> std::result::Result<Snapshot, OrphanableError> {
         event!("vm", "orphaning");
-        let current_state = self.get_state().map_err(|_| OrphanableError::Orphan(anyhow!("Could not get read lock on VM state")))?;
-        if current_state != VmState::Running {
-            return Err(OrphanableError::Orphan(anyhow!(
-                "Trying to orphan while VM is not running"
-            )));
-        }
+        // let current_state = self.get_state().map_err(|_| OrphanableError::Orphan(anyhow!("Could not get read lock on VM state")))?;
+        // if current_state != VmState::Running {
+        //     return Err(OrphanableError::Orphan(anyhow!(
+        //         "Trying to orphan while VM is not running"
+        //     )));
+        // }
 
         let mut state = self.state.try_write().map_err(|_| OrphanableError::Orphan(anyhow!("Could not get write lock on VM state")))?;
         let new_state = VmState::Orphaned;
@@ -2742,6 +2752,7 @@ mod tests {
                 assert!(state.valid_transition(VmState::Shutdown).is_ok());
                 assert!(state.valid_transition(VmState::Paused).is_ok());
                 assert!(state.valid_transition(VmState::BreakPoint).is_ok());
+                assert!(state.valid_transition(VmState::Orphaned).is_err());
             }
             VmState::Running => {
                 // Check the transitions from Running
@@ -2750,6 +2761,7 @@ mod tests {
                 assert!(state.valid_transition(VmState::Shutdown).is_ok());
                 assert!(state.valid_transition(VmState::Paused).is_ok());
                 assert!(state.valid_transition(VmState::BreakPoint).is_ok());
+                assert!(state.valid_transition(VmState::Orphaned).is_ok());
             }
             VmState::Shutdown => {
                 // Check the transitions from Shutdown
@@ -2758,6 +2770,7 @@ mod tests {
                 assert!(state.valid_transition(VmState::Shutdown).is_err());
                 assert!(state.valid_transition(VmState::Paused).is_err());
                 assert!(state.valid_transition(VmState::BreakPoint).is_err());
+                assert!(state.valid_transition(VmState::Orphaned).is_err());
             }
             VmState::Paused => {
                 // Check the transitions from Paused
@@ -2766,6 +2779,7 @@ mod tests {
                 assert!(state.valid_transition(VmState::Shutdown).is_ok());
                 assert!(state.valid_transition(VmState::Paused).is_err());
                 assert!(state.valid_transition(VmState::BreakPoint).is_err());
+                assert!(state.valid_transition(VmState::Orphaned).is_err());
             }
             VmState::BreakPoint => {
                 // Check the transitions from Breakpoint
@@ -2774,6 +2788,16 @@ mod tests {
                 assert!(state.valid_transition(VmState::Shutdown).is_err());
                 assert!(state.valid_transition(VmState::Paused).is_err());
                 assert!(state.valid_transition(VmState::BreakPoint).is_err());
+                assert!(state.valid_transition(VmState::Orphaned).is_err());
+            },
+            VmState::Orphaned => {
+                // Check the transitions from Orphaned
+                assert!(state.valid_transition(VmState::Created).is_err());
+                assert!(state.valid_transition(VmState::Running).is_ok());
+                assert!(state.valid_transition(VmState::Shutdown).is_err());
+                assert!(state.valid_transition(VmState::Paused).is_err());
+                assert!(state.valid_transition(VmState::BreakPoint).is_err());
+                assert!(state.valid_transition(VmState::Orphaned).is_err());
             }
         }
     }
