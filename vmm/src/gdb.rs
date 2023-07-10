@@ -307,6 +307,7 @@ impl MultiThreadBase for GdbStub {
 
 impl MultiThreadResume for GdbStub {
     fn resume(&mut self) -> Result<(), Self::Error> {
+        info!("gdb: resume");
         match self.vm_request(GdbRequestPayload::Resume, 0) {
             Ok(_) => Ok(()),
             Err(e) => Err(format!("Failed to resume the target: {e:?}")),
@@ -314,6 +315,7 @@ impl MultiThreadResume for GdbStub {
     }
 
     fn clear_resume_actions(&mut self) -> Result<(), Self::Error> {
+        info!("gdb: clear_resume_actions");
         if self.single_step {
             match self.vm_request(GdbRequestPayload::SetSingleStep(false), 0) {
                 Ok(_) => {
@@ -335,6 +337,7 @@ impl MultiThreadResume for GdbStub {
         if signal.is_some() {
             return Err("no support for continuing with signal".to_owned());
         }
+        info!("gdb: set_resume_action_continuex");
         match self.vm_request(GdbRequestPayload::Resume, tid_to_cpuid(tid)) {
             Ok(_) => Ok(()),
             Err(e) => Err(format!("Failed to resume the target: {e:?}")),
@@ -357,6 +360,7 @@ impl MultiThreadSingleStep for GdbStub {
             return Err("no support for stepping with signal".to_owned());
         }
 
+        info!("gdb: set_resume_action_step");
         if !self.single_step {
             match self.vm_request(GdbRequestPayload::SetSingleStep(true), tid_to_cpuid(tid)) {
                 Ok(_) => {
@@ -398,6 +402,7 @@ impl HwBreakpoint for GdbStub {
 
         self.hw_breakpoints.push(GuestAddress(addr));
 
+        info!("gdb: add: setting breakpoints {:?}", self.hw_breakpoints);
         let payload = GdbRequestPayload::SetHwBreakPoint(self.hw_breakpoints.clone());
         match self.vm_request(payload, 0) {
             Ok(_) => Ok(true),
@@ -417,6 +422,7 @@ impl HwBreakpoint for GdbStub {
             Some(pos) => self.hw_breakpoints.remove(pos),
         };
 
+        info!("gdb: remove: setting breakpoints {:?}", self.hw_breakpoints);
         let payload = GdbRequestPayload::SetHwBreakPoint(self.hw_breakpoints.clone());
         match self.vm_request(payload, 0) {
             Ok(_) => Ok(true),
@@ -445,6 +451,7 @@ impl run_blocking::BlockingEventLoop for GdbEventLoop {
             <Self::Connection as Connection>::Error,
         >,
     > {
+        info!("gdb: wait_for_stop_reason");
         // Polling
         loop {
             // This read is non-blocking.
@@ -483,6 +490,7 @@ impl run_blocking::BlockingEventLoop for GdbEventLoop {
     fn on_interrupt(
         target: &mut Self::Target,
     ) -> Result<Option<Self::StopReason>, <Self::Target as Target>::Error> {
+        info!("gdb: interrupt");
         target
             .vm_request(GdbRequestPayload::Pause, 0)
             .map_err(|e| {

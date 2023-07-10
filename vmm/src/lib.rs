@@ -776,10 +776,9 @@ impl Vmm {
 
 
     fn vm_adopt(&mut self, _save_path: &str) -> result::Result<(), VmError> {
-        if let Some(ref mut _vm) = self.vm {
-            todo!();
-            // vm.adopt()
-            //     .map_err(VmError::Adopt)
+        if let Some(ref mut vm) = self.vm {
+            vm.adopt()
+                .map_err(VmError::Adopt)
         } else {
             Err(VmError::VmNotRunning)
         }

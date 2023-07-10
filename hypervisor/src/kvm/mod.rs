@@ -646,6 +646,41 @@ impl vm::Vm for KvmVm {
         Ok(())
     }
     #[cfg(target_arch = "x86_64")]
+    /// Disable certain exits to KVM
+    /// https://www.kernel.org/doc/html/latest/virt/kvm/api.html#kvm-cap-x86-disable-exits
+    fn disable_exits(&self) -> vm::Result<()> {
+        info!("KvmVm disable_exits");
+        use kvm_bindings::{KVM_CAP_X86_DISABLE_EXITS, KVM_X86_DISABLE_EXITS_MWAIT, 
+                KVM_X86_DISABLE_EXITS_HLT, KVM_X86_DISABLE_EXITS_PAUSE, KVM_X86_DISABLE_EXITS_CSTATE};
+        for spec_cap in vec![KVM_X86_DISABLE_EXITS_MWAIT, KVM_X86_DISABLE_EXITS_HLT, KVM_X86_DISABLE_EXITS_PAUSE] {
+            let mut cap = kvm_enable_cap {
+                cap: KVM_CAP_X86_DISABLE_EXITS,
+                ..Default::default()
+            };
+            cap.args[0] = spec_cap as u64;
+            self.fd
+                .enable_cap(&cap)
+                .map_err(|e| vm::HypervisorVmError::DisableExits(e.into(), spec_cap))?;                            
+        }
+        Ok(())
+    }
+    #[cfg(target_arch = "x86_64")]
+    /// Disable certain exits to KVM
+    /// https://www.kernel.org/doc/html/latest/virt/kvm/api.html#kvm-cap-x86-disable-exits
+    fn enable_exits(&self) -> vm::Result<()> {
+        info!("KvmVm enable_exits");
+        use kvm_bindings::KVM_CAP_X86_DISABLE_EXITS;
+        let mut cap = kvm_enable_cap {
+            cap: KVM_CAP_X86_DISABLE_EXITS,
+            ..Default::default()
+        };
+        cap.args[0] = 0 as u64;
+        self.fd
+            .enable_cap(&cap)
+            .map_err(|e| vm::HypervisorVmError::EnableExits(e.into()))?;
+        Ok(())
+    }
+    #[cfg(target_arch = "x86_64")]
     fn enable_sgx_attribute(&self, file: File) -> vm::Result<()> {
         let mut cap = kvm_enable_cap {
             cap: KVM_CAP_SGX_ATTRIBUTE,

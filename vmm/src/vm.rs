@@ -848,6 +848,7 @@ impl Vm {
                 .unwrap();
             vm.set_tss_address(KVM_TSS_START.0 as usize).unwrap();
             vm.enable_split_irq().unwrap();
+            vm.disable_exits().unwrap();
         }
 
         Ok(vm)
@@ -2576,12 +2577,6 @@ impl Migratable for Vm {
 impl Orphanable for Vm {
     fn orphan(&mut self)  -> std::result::Result<Snapshot, OrphanableError> {
         event!("vm", "orphaning");
-        // let current_state = self.get_state().map_err(|_| OrphanableError::Orphan(anyhow!("Could not get read lock on VM state")))?;
-        // if current_state != VmState::Running {
-        //     return Err(OrphanableError::Orphan(anyhow!(
-        //         "Trying to orphan while VM is not running"
-        //     )));
-        // }
 
         let mut state = self.state.try_write().map_err(|_| OrphanableError::Orphan(anyhow!("Could not get write lock on VM state")))?;
         let new_state = VmState::Orphaned;
@@ -2592,6 +2587,10 @@ impl Orphanable for Vm {
             device_manager.pause().map_err(|e| OrphanableError::Orphan(anyhow!("Device paused failed {}", e)))?;
             (device_manager.id(), device_manager.snapshot().map_err(|e| OrphanableError::Orphan(anyhow!("Device snapshot failed {}", e)))?)
         };
+        #[cfg(target_arch = "x86_64")]
+        {
+            self.vm.disable_exits().map_err(|e| OrphanableError::Orphan(anyhow!("disable exits failed {}", e)))?;
+        }
 
         *state = new_state;
         event!("vm", "orphaned");
@@ -2599,7 +2598,21 @@ impl Orphanable for Vm {
     }
 
     fn adopt(&mut self)  -> std::result::Result<(), OrphanableError> {
-        todo!()
+        event!("vm", "adopting");
+        let mut state = self.state.try_write().map_err(|_| OrphanableError::Orphan(anyhow!("Could not get write lock on VM state")))?;
+        let new_state = VmState::Running;
+        state.valid_transition(new_state).map_err(|e| OrphanableError::Adopt(anyhow!("Invalid state transition {}", e)))?;
+
+        #[cfg(target_arch = "x86_64")]
+        {
+            self.vm.enable_exits().map_err(|e| OrphanableError::Orphan(anyhow!("enable exits failed {}", e)))?;
+        }
+        let mut device_manager = self.device_manager.lock().unwrap();
+        device_manager.resume().map_err(|e| OrphanableError::Adopt(anyhow!("Device resume failed {}", e)))?;
+
+        *state = new_state;
+        event!("vm", "adopted");
+        Ok(())
     }
 }
 

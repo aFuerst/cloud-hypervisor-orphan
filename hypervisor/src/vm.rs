@@ -121,6 +121,18 @@ pub enum HypervisorVmError {
     #[error("Failed to enable split Irq: {0}")]
     EnableSplitIrq(#[source] anyhow::Error),
     ///
+    /// Disable optional KVM exits error
+    ///
+    #[error("Failed to disable exit {0} {1}")]
+    DisableExits(#[source] anyhow::Error, u32),
+
+    ///
+    /// Enable optional KVM exits error
+    ///
+    #[error("Failed to enable exit {0}")]
+    EnableExits(#[source] anyhow::Error),
+
+    ///
     /// Enable SGX attribute error
     ///
     #[error("Failed to enable SGX attribute: {0}")]
@@ -310,6 +322,10 @@ pub trait Vm: Send + Sync + Any {
     fn enable_split_irq(&self) -> Result<()>;
     #[cfg(target_arch = "x86_64")]
     fn enable_sgx_attribute(&self, file: File) -> Result<()>;
+    #[cfg(target_arch = "x86_64")]
+    fn disable_exits(&self) -> Result<()>;
+    #[cfg(target_arch = "x86_64")]
+    fn enable_exits(&self) -> Result<()>;
     /// Retrieve guest clock.
     #[cfg(target_arch = "x86_64")]
     fn get_clock(&self) -> Result<ClockData>;
