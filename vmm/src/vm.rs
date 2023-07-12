@@ -2368,7 +2368,7 @@ impl Pausable for Vm {
 
         state
             .valid_transition(new_state)
-            .map_err(|e| MigratableError::Resume(anyhow!("Invalid transition: {:?}", e)))?;
+            .map_err(|e| MigratableError::Resume(anyhow!("Invalid resume transition: {:?}", e)))?;
 
         match *state {
             VmState::Paused => {
@@ -2384,7 +2384,7 @@ impl Pausable for Vm {
                 Ok(())
             },
             VmState::Orphaned => Ok(()),
-            _ => Err(MigratableError::Resume(anyhow!("Invalid transition: {:?} => {:?}", state, VmState::Running))),
+            _ => Ok(()),
         }?;
         self.device_manager.lock().unwrap().resume()?;
 
