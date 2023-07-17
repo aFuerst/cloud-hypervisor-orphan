@@ -488,9 +488,9 @@ dependencies = [
 
 [[package]]
 name = "proc-macro2"
-version = "1.0.63"
+version = "1.0.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b368fba921b0dce7e60f5e04ec15e565b3303972b42bcfde1d0713b881959eb"
+checksum = "18fb31db3f9bddb2ea821cde30a9f70117e3f119938b5ee630b7403aa6e2ead9"
 dependencies = [
  "unicode-ident",
 ]
@@ -843,7 +843,6 @@ dependencies = [
  "byteorder",
  "epoll",
  "event_monitor",
- "io-uring",
  "libc",
  "log",
  "net_gen",
@@ -932,6 +931,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vm-orphan"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "versionize",
+ "versionize_derive",
+ "vm-migration",
+]
+
+[[package]]
 name = "vm-virtio"
 version = "0.1.0"
 dependencies = [
@@ -982,6 +994,7 @@ dependencies = [
  "vm-device",
  "vm-memory",
  "vm-migration",
+ "vm-orphan",
  "vm-virtio",
  "vmm-sys-util",
  "zerocopy",
