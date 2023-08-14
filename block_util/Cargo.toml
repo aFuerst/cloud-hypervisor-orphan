@@ -9,7 +9,7 @@ default = []
 io_uring = ["dep:io-uring"]
 
 [dependencies]
-io-uring = { version = "0.5.13", optional = true }
+io-uring = { version = "0.6.1", optional = true }
 libc = "0.2.139"
 log = "0.4.17"
 qcow = { path = "../qcow" }
