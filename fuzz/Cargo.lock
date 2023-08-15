@@ -69,21 +69,24 @@ dependencies = [
 
 [[package]]
 name = "argh_derive"
-version = "0.1.10"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b382dbd3288e053331f03399e1db106c9fb0d8562ad62cb04859ae926f324fa6"
+checksum = "56df0aeedf6b7a2fc67d06db35b09684c3e8da0c95f8f27685cb17e08413d87a"
 dependencies = [
  "argh_shared",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.23",
 ]
 
 [[package]]
 name = "argh_shared"
-version = "0.1.10"
+version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64cb94155d965e3d37ffbbe7cc5b82c3dd79dd33bd48e536f73d2cfb8d85506f"
+checksum = "5693f39141bda5760ecc4111ab08da40565d1771038c4a0250f03457ec707531"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bincode"
@@ -843,7 +846,6 @@ dependencies = [
  "byteorder",
  "epoll",
  "event_monitor",
- "io-uring",
  "libc",
  "log",
  "net_gen",
@@ -932,6 +934,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "vm-orphan"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "versionize",
+ "versionize_derive",
+ "vm-migration",
+]
+
+[[package]]
 name = "vm-virtio"
 version = "0.1.0"
 dependencies = [
@@ -982,6 +997,7 @@ dependencies = [
  "vm-device",
  "vm-memory",
  "vm-migration",
+ "vm-orphan",
  "vm-virtio",
  "vmm-sys-util",
  "zerocopy",
