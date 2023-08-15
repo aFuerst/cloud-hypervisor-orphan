@@ -1276,6 +1276,8 @@ impl Vmm {
             &self.hypervisor,
             #[cfg(feature = "tdx")]
             false,
+            #[cfg(target_arch = "x86_64")]
+            false,
         )
         .map_err(|e| {
             MigratableError::MigrateReceive(anyhow!(

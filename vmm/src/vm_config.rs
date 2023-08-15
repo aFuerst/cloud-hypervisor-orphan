@@ -591,6 +591,8 @@ pub struct VmConfig {
     pub iommu: bool,
     #[cfg(target_arch = "x86_64")]
     pub sgx_epc: Option<Vec<SgxEpcConfig>>,
+    #[cfg(target_arch = "x86_64")]
+    pub disable_exits: bool,
     pub numa: Option<Vec<NumaConfig>>,
     #[serde(default)]
     pub watchdog: bool,

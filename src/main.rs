@@ -229,6 +229,10 @@ pub struct TopLevel {
     /// enable pvpanic device
     pvpanic: bool,
 
+    #[argh(switch, long = "disable-exits")]
+    /// disable certain exits to kvm
+    disable_exits: bool,
+
     #[argh(option, long = "numa")]
     /// guest_numa_id=<node_id>, cpus=<cpus_id>, distances=<list_of_distances_to_destination_nodes>, memory_zones=<list_of_memory_zones>, sgx_epc_sections=<list_of_sgx_epc_sections>
     numa: Vec<String>,
@@ -355,6 +359,7 @@ impl TopLevel {
         let vsock = self.vsock.as_deref();
 
         let pvpanic = self.pvpanic;
+        let disable_exits = self.disable_exits;
 
         #[cfg(target_arch = "x86_64")]
         let sgx_epc = if !self.sgx_epc.is_empty() {
@@ -397,6 +402,8 @@ impl TopLevel {
             pvpanic,
             #[cfg(target_arch = "x86_64")]
             sgx_epc,
+            #[cfg(target_arch = "x86_64")]
+            disable_exits,
             numa,
             watchdog,
             #[cfg(feature = "guest_debug")]

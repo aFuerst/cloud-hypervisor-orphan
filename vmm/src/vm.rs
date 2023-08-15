@@ -772,6 +772,8 @@ impl Vm {
             &hypervisor,
             #[cfg(feature = "tdx")]
             tdx_enabled,
+            #[cfg(target_arch = "x86_64")]
+            vm_config.lock().unwrap().disable_exits,
         )?;
 
         let phys_bits = physical_bits(&hypervisor, vm_config.lock().unwrap().cpus.max_phys_bits);
@@ -830,6 +832,7 @@ impl Vm {
     pub fn create_hypervisor_vm(
         hypervisor: &Arc<dyn hypervisor::Hypervisor>,
         #[cfg(feature = "tdx")] tdx_enabled: bool,
+        #[cfg(target_arch = "x86_64")] disable_exits: bool
     ) -> Result<Arc<dyn hypervisor::Vm>> {
         hypervisor.check_required_extensions().unwrap();
 
@@ -848,7 +851,10 @@ impl Vm {
                 .unwrap();
             vm.set_tss_address(KVM_TSS_START.0 as usize).unwrap();
             vm.enable_split_irq().unwrap();
-            vm.disable_exits().unwrap();
+            if disable_exits {
+                info!("disabling VM exits");
+                vm.disable_exits().unwrap();
+            }
         }
 
         Ok(vm)

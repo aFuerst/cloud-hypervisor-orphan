@@ -373,6 +373,8 @@ pub struct VmParams<'a> {
     pub pvpanic: bool,
     #[cfg(target_arch = "x86_64")]
     pub sgx_epc: Option<Vec<&'a str>>,
+    #[cfg(target_arch = "x86_64")]
+    pub disable_exits: bool,
     pub numa: Option<Vec<&'a str>>,
     pub watchdog: bool,
     #[cfg(feature = "guest_debug")]
@@ -2024,6 +2026,9 @@ impl VmConfig {
         let platform = vm_params.platform.map(PlatformConfig::parse).transpose()?;
 
         #[cfg(target_arch = "x86_64")]
+        let disable_exits: bool = vm_params.disable_exits;
+
+        #[cfg(target_arch = "x86_64")]
         let mut sgx_epc: Option<Vec<SgxEpcConfig>> = None;
         #[cfg(target_arch = "x86_64")]
         {
@@ -2089,6 +2094,8 @@ impl VmConfig {
             iommu: false, // updated in VmConfig::validate()
             #[cfg(target_arch = "x86_64")]
             sgx_epc,
+            #[cfg(target_arch = "x86_64")]
+            disable_exits,
             numa,
             watchdog: vm_params.watchdog,
             #[cfg(feature = "guest_debug")]
